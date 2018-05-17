@@ -1,0 +1,113 @@
+---
+title: "SOC 225 Lab Meeting 1"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+#handy function which checks if packages are installed, installs if necessary, and then loads them
+ipak <- function(pkg){
+    new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+    if (length(new.pkg)) 
+        install.packages(new.pkg, dependencies = TRUE)
+    sapply(pkg, require, character.only = TRUE)
+}
+packages <- c("ggplot2", "knitr", "kableExtra", "dplyr", "stringr")
+ipak(packages)
+```
+
+## Example Code with Survey Results
+```{r}
+#import the dataset
+class_data <- read.csv('data/classdata.csv', row.names = 1)
+#label the column names for easy reference
+colnames(class_data) <- c('soc_major', 'soc_class', 'data_class', 'feel', 'research_q', 'variables', 'comfort', 'thought')
+# look at the data in the data viewer
+View(class_data)
+```
+
+## Summarizing the Data
+```{r}
+#counting the responses to the sociolog major question, then making a table
+class_data %>% count(soc_major) %>% kable(col.names = c("", "Is a Sociology Major"))
+```
+  
+  
+## Summarizing the Data
+
+```{r}
+#counting the responses to the sociolog classes question, then making a table
+class_data %>% count(soc_class) %>% kable(col.names = c("", "Number of Sociology Classes Taken"))
+```
+  
+  
+  
+## Summarizing the Data
+
+```{r}
+#counting the responses to the comp classes question, then making a table
+class_data %>% count(data_class) %>% kable(col.names = c("", "Number of Computational Classes Taken"))
+```
+  
+  
+## Basic Visualizations
+  
+But sometimes it's easier to have that sutff as a visualization  
+  
+```{r}
+
+#this line sets the stage and data, the plus says we're gonna add more on the next line
+ggplot(class_data, aes(fill=research_q))+
+  # now we'll make a bar chart
+  geom_bar(aes(research_q))+
+  # add a title
+  ggtitle('Have you written a Research Question?')+
+  # and set the theme to classic
+  theme_classic()
+```
+
+## Basic Visualizations
+  
+```{r echo=FALSE}
+#same chart starting
+ggplot(class_data, aes(fill=comfort))+
+  geom_bar(aes(comfort))+
+  ggtitle('How comfortable are you with R?')+
+  # but this time we flip the coordinates because of the long lables
+  coord_flip()+
+  theme_classic()+
+  #we also remove the legend, because it takes up too much space
+  theme(legend.position = 'none')
+
+```
+
+  
+## Basic Visualizations
+  
+```{r echo=FALSE}
+#see if you can read this visualization based on the previous one
+ggplot(class_data, aes(fill=thought))+
+  geom_bar(aes(thought))+
+  ggtitle('Have much have you thought about data issues?')+
+  coord_flip()+
+  theme_classic()+
+  theme(legend.position = 'none')
+```   
+  
+
+## Problem: How to make the data useful?
+```{r}
+# mutate the data to make the strings useful using a regular expression. We won't cover this in our class
+class_data <- class_data %>%
+  mutate(feel_numeric = as.numeric(str_extract(class_data$feel, '\\d+.\\d+')))
+```
+
+Let's throw that into a histogram:
+
+```{r}
+#similar first line to a bar chart
+ggplot(class_data, aes(feel_numeric))+
+  #setting some specifics for our histogram
+  geom_histogram(breaks = c(0,20,40,60,80,100), fill = 'blue', alpha = .5)+
+  theme_classic()
+```
+
