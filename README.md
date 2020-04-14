@@ -1,2 +1,2 @@
 # Data-and-Society-Lab
-Lab Exercises from Data and Society 
+Lab Exercises from Sociolgy 225 Data and Society 
