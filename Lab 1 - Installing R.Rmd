@@ -1,8 +1,6 @@
 ---
 title: "SOC 280 Lab 1 - Installing R"
-output:
-  html_document:
-    df_print: paged
+output: html_notebook
 ---
 
 Welcome to the lab portion of Sociology 280: Data and Society. Over the course of this
