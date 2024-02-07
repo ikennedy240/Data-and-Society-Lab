@@ -1,17 +1,19 @@
 ---
-title: "SOC 225 Lab Workshop 3"
+title: "SOC 280 Lab Workshop 3"
 output: html_notebook
 ---
 
-Check-In: 
-
-Check out this cool data project and answer the questions on the board:
+Check out this cool data project and answer the questions:
 https://googletrends.github.io/asne/?filter=gender&view=0
+
+1. Interpret the plot as a whole, including the gender and race views.
+
+2. Find the Chicago newsrooms. What do you think? Why is it like that?
 
 
 Part 0: Review
 
-0.1 Note that I haven't included a /data file or a copy of the airbnb data. See if you can download that data, put it into the right directory, make a new code chunk, load the library tidyverse, and then load the airbnb data into r. 
+0.1 Prepare your environment and load the airbnb data: make a new code chunk, load the library tidyverse, and then load the airbnb data into r. 
 
 Part 1: Research Questions and Data Sources
 
@@ -21,14 +23,12 @@ Our Airbnb data comes from this website: http://insideairbnb.com/index.html
 
 1.2 Find an example on the website of a question or issue the authors used their data to answer or address. What were their findings?
 
-Bonus: Can you verify any of their results with the data that you have (remember that we're only using a subset of the full data in the lab, so the exact numbers might not match)
-
 
 Part 2:
 
 Here's a sample research question:
 
-What area of New York has the most expensive airbnb listings?
+What area of Chicago has the most expensive airbnb listings?
 
 Before we answer the question, let's examine it.
 
@@ -48,67 +48,55 @@ First, let's do an example.
 
 I'm going to go through a few steps here to answer a version of this question. 
 
-First, I want to look at a little less data. Instead of the whole airbnb set, I'm going to make a smaller data set with only a few varibles. To do so, I'm going to use a nifty trick: the pipe, or %>%. These three awesome characters allow me to take the output of one function and use it as the input for another function. Check it out:
+First, I want to look at a little less data. Instead of the whole airbnb set, I'm going to make a smaller data set with only a few varibles. To do so, I'm going to use a nifty trick: the pipe, or %>% (or |>). These three awesome characters allow me to take the output of one function and use it as the input for another function. Check it out:
 
 ```{r}
 #new var              pipe! 
-small_airbnb <- airbnb %>% select(price, neighbourhood_cleansed)
-#this makes a new variable, 'small_airbnb' by 'selecting' the columns price and neighborhood_cleansed
+small_airbnb <- airbnb %>% select(price, neighbourhood, availability_365)
+#this makes a new variable, 'small_airbnb' by 'selecting' the columns price, neighborhood, and availability
 
 ```
 
 Check out the new variable to see that it only has two columns.
 
-Now, I'm going to limit the set to just a few neighborhoods. Just like before, I'll use the pipe, but now I'm using 'filter' instead of 'select.' 'Select' let's me pick columns, 'filter' lets me filter out only the *rows* that match a certian rule.
+Ok, now that we've selected some columns, we can modify the data using the `mutate` function.
+
+Mutate lets us make a new variable in our dataframe, often by using existing variables.
+I want to make a new variable that just indicates whether there is any availaiblity 
+in the next year. 
 
 ```{r}
-#first I make a list of neighborhood names that I want to keep          (my home 'hood!)
-hoods <- c("Harlem", "Bushwick", "SoHo", "Willamsburg", "East Village", "Upper West Side")
+small_airbnb <- small_airbnb %>% mutate(any_avail = availability_365 > 0)
+```
+
+
+Now, I'm going to limit it to units with at least some availability and limit to just a few neighborhoods. Just like before, I'll use the pipe, but now I'm using 'filter' instead of 'select.' 'select' let's me pick columns, 'filter' lets me filter out only the *rows* that match a certain rule. In this case, I'm matching two rules. First, I use '==' to match listings where my new column `any_avail` is TRUE. Then, I use the `%in%` operator to limit to listings with neighborhoods in the vector of neighborhood names I made.
+
+```{r}
+#first I make a list of neighborhood names that I want to keep          
+hoods <- c("Near North Side", "West Town", "West Side", "Logan Square", "Loop", "South Chicago")
 #then I use that list to filter only the rows that match my list: 
-small_airbnb <- small_airbnb %>% filter(neighbourhood_cleansed %in% hoods)
+small_airbnb <- small_airbnb %>% filter(any_avail == TRUE, neighbourhood %in% hoods)
 ```
 
-I have another problem: that pesky price variable which isn't a number, but a string. Let's take care of that using 'mutate.'
 
-```{r}
-small_airbnb <- small_airbnb %>% mutate(clean_price = as.numeric(gsub('\\$|,','',price)))
-```
-
-Finally, we can use one more new function combination, groupby + summarise, to get the mean price by neighborhood.
+Now we can use one more new function combination, groupby + summarise, to get the mean price by neighborhood. This tells R to take our data, the put it into groups by neighborhood. Then, for each group, find the mean, or the average. Note that I add 'na.rm = TRUE' to the mean function. That is an extra argument that tells R to drop NA values. 
 
 ```{r}
 #here I don't use a <- because I'm not saving the output as a variable, I'm just looking at it
-small_airbnb %>% group_by(neighbourhood_cleansed) %>% summarise(mean = mean(clean_price))
+small_airbnb %>% group_by(neighbourhood) %>% summarise(mean = mean(price, na.rm = TRUE))
 
 ``` 
 ##For each of these questions you'll need to write your own code. HOWEVER, the code you need is very similar to the code I used above. 
 
 3.1 Use select to make a new dataset called 'medium_airbnb' with the following columns:
-zipcode, price, cleaning_fee, and number_of_reviews
+price, neighborhood, number_of_reviews
 
-3.2 Filter your dataset to inlcude only listings with more than 5 reviews
-
-3.3 Clean the price variable into a 'clean_price' variable. (Bonus: clean the cleaning fee variable too and make a new variable called 'total_price' which is the sum of clean_price and clean_cleaning_fee)
-
-3.3 Use groupby and summarise to find the mean price (or total_price) by zipcode
+3.2 Filter your dataset to include only listings with more than 5 reviews
 
 
-Bonus: Which zipcode has the highest average total price?
+3.3 Use groupby and summarise to find the mean price (or total_price) by neighborhood
 
 
-Extra time? Try the tidycensus package.
+Bonus: Which neighborhood has the highest average total price?
 
-E.1 Install the tidycensus package
-Info here:https://github.com/walkerke/tidycensus
-
-E.2 Use the tidy census to get information about race by zipcode in New York State.
-Use the get_decennial() function
-Set geography to 'zcta'
-Census variables for race: 
-White = "P0050003"
-Black = "P0050004"
-Asian = "P0050006"
-Hispanic = "P0040003"
-summary_var = "P0010001" (full population)
-
-E.3 Reshape the resulting data into a format that you can merge with the Airbnb data and see what you can see.

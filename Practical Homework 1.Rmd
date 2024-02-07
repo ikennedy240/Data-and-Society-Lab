@@ -1,5 +1,5 @@
 ---
-title: "SOC 225 LAB Homework 1"
+title: "SOC 280 LAB Homework 1"
 author: "YOUR NAME HERE"
 output: html_notebook
 ---
@@ -20,7 +20,7 @@ Remember to unzip to a real directory before running everything!
 
 ```
 
-1.3 Output the column names using the function colnames()
+1.3 Look briefly at the data using the function glimpse()
 
 ```{r}
 

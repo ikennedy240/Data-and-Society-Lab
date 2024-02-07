@@ -1,11 +1,9 @@
 ---
-title: "SOC 225 Lab Meeting 2"
+title: "SOC 280 Lab Meeting 2"
 output: html_notebook
 ---
 
-Check-In
-
-Part 0: How to R
+# Part 0: How to R
 
 http://r4ds.had.co.nz/
 
@@ -28,15 +26,19 @@ y <- 1:100
 
 snake_case <- "An easy way to store variable names in R. All lowercase letters with underscores for spaces. You can put numbers on the end if you want"
 
+You might also see:
+
+camelCase which uses an uppercase letter to denote new words
+
 Functions
 
 mean()
 
 rnorm()
 
-## R Markdown
+R Markdown
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+Just like last week, this is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
 
@@ -45,12 +47,9 @@ library(tidyverse)
 ```
 
 What happened?
-If you try to load a package and you can't, it probably means it's not installed. We can install a package using install.packages('somePackage'). Try typing the code to install the package 'tidyverse' in the chunk below and running the chunk.
+If you try to load a package and you can't, it probably means it's not installed. We can install a package using install.packages('somePackage'). Try typing the code to install the package 'tidyverse' in the console.
 
-```{r}
-
-```
-
+Once we have the packages we need loaded, we can import the data.
 
 ```{r}
 airbnb <- read_csv('data/airbnb.csv')
@@ -58,23 +57,27 @@ airbnb <- read_csv('data/airbnb.csv')
 
 Notice that you now have a new variable in your environment pane.
 
-What did this code just do?
+What is the role of each part of this code?
+`airbnb <- read_csv('data/airbnb.csv')`
 
-Now let's make a new code chunk. You can either type out ``` using the key above 'tab', then {r} or use the handy shortcut 'command + option + i' on mac or 'control + alt + i' on linux or windows. In the new chunk, use View() to look at the airbnb.
+airbnb:
+read_csv:
+'data/airbnb.csv':
+
+Now you'll make a new code chunk. You can either type out ``` using the key above 'tab', then {r} or use the handy shortcut 'command + option + i' on mac or 'control + alt + i' on linux or windows. In the new chunk, use glimpse() to look at the airbnb data.
 
 
 
 ## Part 1: Different data formats, data structures
 
-Questions: 
 
-1.1. What different types of data do you see in the airbnb data set? How do you think these data were collected by Airbnb? How did they come to us? Is this big-data based on the definition we've used in lecture?
+1.1. Use the output from the chunk you made above to answer these questions. What different types of data do you see in the airbnb data set? How do you think these data were collected by Airbnb? How did they come to us? Is this big-data based on the definition we've used in class?
 
 1.2. Run the following code chunk and then view the resulting variables by typing their names into the console.
 
 ```{r}
-var1 <- mean(airbnb$host_listings_count, na.rm = TRUE)
-var2 <- unique(airbnb$neighbourhood_cleansed)
+var1 <- mean(airbnb$number_of_reviews, na.rm = TRUE)
+var2 <- unique(airbnb$neighbourhood)
 var3 <- airbnb %>% select(latitude,longitude)
 ```
 
@@ -87,9 +90,7 @@ Bonus 1.1: What's the most common type of data in airbnb?
 Bonus 1.2: Plot latitude and longitude, more bonus: use 'neighborhood' as the color most bonus: put it on a map
 
 
-## Part 2: Introduction to the R environment, Variables, Functions, Data Types
-
-Questions:
+## Part 2: Introduction to the Variables, R environment, Data Structures Types
 
 2.1 What variables have we seen already?
 
@@ -97,21 +98,104 @@ Questions:
 
 2.3 Use the function 'class()' to check the data type of the three variables from part 1.
 
-DataFrames are key, we'll use them a lot. DataFrames are special lists of lists where each of the lists has the same length, these are the columns. Each column contains a specific kind of data. A row is the value in each column for a particular index level. 
+### Varibles
+
+In R we can store most data, from a single number to a huge spreadsheet, as a 'variable'.
+These variables are basically a way of giving some peice of data a name so that
+we can access it and easily use it later. You've already created some variables--
+var1, var2, var3 are all variables, as are your re-named versions. Even `airbnb` which
+is a dataframe with almost 9k observations is a variable. 
+
+Here's an example of a variable:
+
+```{r}
+ians_full_name <- 'Ian Taylor Kennedy'
+```
+
+I wrote a variable name in snake_case 'ians_full_name' assigned it the value of my 
+full name 'Ian Taylor Kennedy'
+
+Technically, variables are one type of 'object' that R is worried about. The other main type 
+of object that we'll deal with are functions, which we'll spend more time on in part 3.
+
+2.4 Make a new chunk below. Use it to make a new variable that has your name in it.
+
+### R environment
+
+The R environment is all of the variables and functions available to you. You can 
+see the variables loaded into your environment in the environment pane. You can
+see the functions and other objects (including built-in data!) that are available by 
+selecting packages from the dropdown menu labeled "Global Environment".
+
+2.5 Look at the data that's available from the package 'datasets'. Write one of 
+the available dataset names here:
+
+
+### Data Types and Structures
+
+
+You've probably noticed that we've stored a variety of stuff as variables. 
+var1 is a single number
+var2 is has 77 neighborhoods
+var3 has 8949 pairs of numbers
+ians_full_name has one name
+airbnb has 8949 observations of 18 variables!
+
+These variables reflec different data types and data structures .
+
+*Data types* refer to the way data is stored, but we can think about it as what kind
+of data is being stored. We can have numeric data (like var1), character data 
+(var2, ians_full_name), but also special data types for dates, for large floating point numbers
+for spatial geometry, and for other specialized uses.
+
+
+*Data structures* refer to the way data is organized. In R the basic data structure
+is a 'vector', which is an ordered set of data that's all the same type. You can
+make a vector in R by using the c() function.
+
+```{r}
+c(2,1,2,55,3,25,6,5)
+```
+
+
+You can also make lists (using the list() function), which -aren't- all of the 
+same type. Notice that I have three vectors in this list!
+
+```{r}
+list(var1, var2, ians_full_name)
+```
+
+
+DataFrames are key, we'll use them a lot. DataFrames are special lists of vectors where each of the vectors has the same length--these are the columns. Each column contains a specific kind of data. A row is the value in each column for a particular index level. 
 
 We can get specific columns from a dataframe by using a $:
+Or by asking for its name in []
 
-airbnb$room_type
+```{r}
+airbnb$room_type # returns a vector
+airbnb['room_type'] # returns a dataframe with one column
+```
 
-Colums are lists, so you can find a specific index by using []:
 
+Columns are vectors, so you can find a specific index by using []:
+
+```{r}
 airbnb$room_type[30]
+```
 
 You can use the function head(n) to get the top n values of a dataframe or list
 
+```{r}
+head(airbnb$room_type)
+```
+
+
 'room_type' has a few different values. We can use the function unique() to find the different values.
 
+```{r}
 unique(airbnb$room_type)
+```
+
 
 Try running each line of the code chunk below by putting your cursor on the line and pressing 'command' + 'return' on mac and 'ctl'+'return' on windows or linux.
 
@@ -123,8 +207,8 @@ unique(airbnb$room_type)
 ```
 
 
-## 3 Some More About Functions
-We can think about R functions as verbs, and Data and values as nouns. All R functions have the following form:
+## 3 Functions
+We can think about R functions as verbs, and variables as nouns. All R functions have the following form:
 
 functionName(argument1 = value1, argument2 = value2)
 
@@ -142,16 +226,26 @@ OR if you're not sure of the name of the function:
 
 If none of that helps, remember the secret to coding: google and stackexchange
 
+Let's try it out with a new function for dataframes, called 'count()'. Count let's
+us see how many of each different value there is in the data. We can write it like this:
+
+count(our_data, column_to_count)
+
+Now try it using the airbnb data to count how many of each room types there are.
+So make a new chunk, then use 'airbnb' as the name of our dataframe and 'room_type'
+as our column name.
+
+
 
 ## 4 Practice Exercises
 
-4.1 Make a new code chunk and use it to look at the column names of airbnb using the function colnames
+4.1 Make a new code chunk and use it to look at the summary of each column in airbnb using the function `summary()`, which takes a dataframe as its argument
 
-4.2 Use the unique function to list the types of properties available (not the room types)
+4.2 Use the unique function to list the unique property names. How many are there?
 
-4.3 find the average number of days that a property is available over the next year. You'll need to find the right variable, then the right function to use, then apply that fuction to that variable.
+4.3 find the average number of days that a property is available over the next year. You'll need to find the right variable, then the right function to use, then apply that function to that variable.
 
-Bonus 4.1: How many hosts are superhosts?
+Bonus 4.1: What neighborhood in Chicago has the most airbnb listings?
 
 Bonus 4.2: What's the average price of a unit?
 

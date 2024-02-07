@@ -1,52 +1,70 @@
 ---
-title: "SOC 225 Lab Workshop 4"
+title: "SOC 280 Lab Workshop 4"
 output: html_notebook
 ---
 
 Check-In: 
 
-Part 0: Review
+# Part 0: Review
 
-0.1 Note that I haven't included a /data file or a copy of the airbnb data. Import the tidyverse, download the data, put it in the data file, and load it... All that good stuff.
+0.1 In this lab we'll be working with data about neighborhoods and health. The 
+data come from two sources, the Places Nanda Survey, which surveys people about
+their health, and the US Census's ACS (American Community Survey) from 2013-2017.
+These data are at the census tract level, so each row represents a Census Tract.
+The data are on blackboard in a file called 'health_census.csv'. Download the file 
+and put it in your data folder.
 
-0.2 We're going to need a clean price variable for this lab, so take the airbnb dataset and create a clean price variable, it should be numeric. You might need to divide by 100... Call it 'clean_price' or the my example code won't work :). 
+0.2 Load the tidyverse and the health_census data. 
 
-0.Bonus Make a new variable that is the number of characters in the 'name' 
+0.3 Glimpse the health_census data
 
-Part 1:
+# Part 1:
 
 We'll start with an example:
 
 Some questions are best answered visually. Let's use this one:
 
-How is listing price related to square footage?
+What is the relationship between neighborhood poverty and rates of Asthma.
 *take a moment to make a hypothesis*
 
 First, without a visualizaiton, I could look at a correlation:
 ```{r}
-#first make a small df to include only the variables I want, then drop NA values and filter to only listings where square_feet is greater than 10 (because they're probably fake)
-airbnb_small <- airbnb %>% select(clean_price, square_feet, bedrooms, bathrooms, neighbourhood_group_cleansed) %>% drop_na() %>% filter(square_feet>10)
+# some variables have missing values, so we have to drop those for this part
+
+health_census_clean <- health_census %>% 
+  select(asthma, cancer, ppov13_17, affluence13_17,pnhwhite13_17, totpop13_17) %>% 
+  drop_na()
 # do a simple correlation between my variables
-cor(airbnb_small$clean_price,airbnb_small$square_feet)
+
+cor(health_census_clean$ppov13_17, health_census_clean$asthma)
 ```
-This result shows that as price increases, squarefootage tends to increase and vice versa. The correlation is moderately strong. 
+This result shows that poverty and asthma are positively correlated. In other words,
+neighborhoods with more poverty also tend to have more asthma. Why would that be? 
 
 How could we answer this question using visualizations? 
 
 In this situation, though, we still don't have a good understanding of this relationship. It might help to make a graph.
 
+
 ```{r}
-ggplot(data = airbnb_small) + 
-  geom_point(mapping = aes(x = square_feet, y = clean_price))
+#OK a lot going on here
+#* First we use the ggplot function and pass it two arguments
+#* data, which tells it what data to use
+#* and mapping, which tells it what variables to put where
+#* Then we add a '+' to say, we're going tell you more about this plot on the next line
+#* On the next line we just put 'geom_point' to tell ggplot to make a scatterplot
+
+ggplot(data = health_census_clean,mapping =aes(x = ppov13_17, y = asthma)) + 
+  geom_point()
 ```
 
-1.1 What is the correlation between number of bedrooms and number of bathrooms?
+1.1 What is the correlation between affluence and cancer?
 
 1.2 Plot the relationship.
 
 1.Bonus: Graph the relationship between price and number of characters.
 
-Part 2: Research Questions and Data Sources
+# Part 2: Research Questions and Data Sources
 
 What makes a good visualization?
 
@@ -68,103 +86,109 @@ Darkhorse: https://www.darkhorseanalytics.com/blog/data-looks-better-naked
 
 
 
-Part 3: Different Visualization Types
+# Part 3: Adding on to visualizations
 
 Let's consider our square footage graph from before:
 
 ```{r}
-ggplot(data = airbnb_small) + 
-  geom_point(mapping = aes(x = square_feet, y = clean_price))
+ggplot(data = health_census_clean,mapping =aes(x = ppov13_17, y = asthma)) + 
+  geom_point()
 ```
 
-There are two points with very high prices, over $100,000 per night. Where do you think these units are?
-
-Uisng 'color' in our aes(), we can add colors and labels to our visualization:
+We might be interested in how race interacts with tis.
 
 ```{r}
-ggplot(data = airbnb_small) + 
-  geom_point(mapping = aes(x = square_feet, y = clean_price, color=neighbourhood_group_cleansed))
+ggplot(data = health_census_clean,mapping =aes(x = ppov13_17, y = asthma, color = pnhwhite13_17)) + 
+  geom_point()
 ```
 
-3.1 Where are the most expensive units? Where are the largest units?
+What does this plot suggest about the relationship between asthma, poverty, and race?
 
-We can also change the size of the dots
+We can also change the size of the dots. Now they'll be bigger when the total population
+of the area is higher. I've changed the 'alpha' value in geom_point, which makes our
+dots slightly see-through and lets us see more of them.
 
 ```{r}
-ggplot(data = airbnb_small) + 
-  geom_point(mapping = aes(x = square_feet, y = clean_price, size=bedrooms))
+ggplot(data = health_census_clean,mapping =aes(x = ppov13_17, y = asthma, size = totpop13_17)) + 
+  geom_point(alpha = .1)
 ```
 
-Now dots are sized by the number of bedrooms. 
 
-Sometimes it's nice to have more than one graph. Our graph which used the colors for the bouroughs in New York wasn't very effective because the dots overlapped. We can use facet wrap to make a bunch of plots of similar data.
-
-```{r}
-ggplot(data = airbnb_small) + 
-  geom_point(mapping = aes(x = square_feet, y = clean_price))+
-  facet_wrap(~ neighbourhood_group_cleansed, nrow = 2)
-```
-
-Now we can see differences in area a bit more clearly. Poor Staten Island~
 
 We can also add trendlines:
 ```{r}
-ggplot(data = airbnb_small) + 
-  geom_point(mapping = aes(x = square_feet, y = clean_price))+
-  geom_smooth(mapping = aes(x = square_feet, y = clean_price), method = 'glm', se=FALSE)
+ggplot(data = health_census_clean,mapping =aes(x = ppov13_17, y = asthma)) + 
+  geom_point()+
+  geom_smooth(method = 'lm')
 ```
 
 There are some other kinds of plots we can make:
 
-Histograms:
+### Histograms:
+
+Histograms show the variation within a particular variable.
 
 ```{r}
-# I can use dplyr right in the ggplot! 
-# This is a histogram including only units with prices under $1,000 a night 
-# You can try taking out the filter and see what happens.
-ggplot(airbnb %>% filter(clean_price<1000))+
-  geom_histogram(aes(clean_price), bins=35)
+ggplot(health_census_clean, aes(asthma))+
+  geom_histogram()
 ```
 
 
-Box and whisker plots:
-```{r}
-# I can even start with a pipe and then pipe it into ggplot!
-# Here I take airbnb, filter it to less than 7 bedrooms and less than $2,500 a night
-airbnb %>% filter(bedrooms<7, clean_price<2500) %>%
-  ggplot()+
-  # and then plot a boxplot
-    geom_boxplot(aes(factor(bedrooms), clean_price))
-```
+### Box and whisker plots:
 
-Bar graphs:
+Box and whisker plots are a good way to see distributions by some other variable.
+
+In this case, we'll make three groups and see how asthma shows up in those groups.
+
 
 ```{r}
-ggplot(airbnb)+
-  geom_bar(aes(neighbourhood_group_cleansed))
+
+# here I make a new varible with mutate that has three groups for low, middle,
+# and high poverty
+health_census_clean <- health_census_clean %>% 
+  mutate(pov_cat = cut_interval(ppov13_17, n = 3, labels = c('low poverty', 'middle poverty', 'high poverty')))
+
+ggplot(health_census_clean, aes(pov_cat, asthma))+
+  geom_boxplot()
 ```
 
-3.2 Change the above code so that we can see the distribution of units which cost more than $5,000 a night. Less than $100 a night?
+### Bar graphs:
 
-Plots with longitude and latitude:
+Let's make a bar graph of the number of observations we have in each state. Bar graphs
+are easy, we just need one variable in our aes call, which will be our x axis. The
+height of the bars will be the number of observations. We'll start with a basic plot
+and make some adjustments as we go.
 
 ```{r}
-ggplot(airbnb) +
-  geom_point(aes(longitude, latitude, color=neighbourhood_group_cleansed)) +
-  coord_quickmap()
-colnames(airbnb)
+ggplot(health_census, aes(StateDesc))+
+  geom_bar()
 ```
 
-3.3 Modify the above to show color by number of bedrooms, by price.
+So, that technically worked, but there are so many states that the x-axis is unreadable.
+We can't tell what sate in here. We can fix this by adjusting the text in the x-axis. 
 
-3.4 Make a new plot using variables and chart type of your choice.
+```{r}
+ggplot(health_census, aes(StateDesc))+
+  geom_bar()+
+  # so this line tells ggplot to rotate the text in the x-axis by 90 degrees
+  theme(axis.text.x = element_text(angle = 90))
+```
 
-Extra time?
+This plot is a log better, now we can see the state names. But it's not awesome.
+The states are ordered alphabetically, but that makes it difficult to compare states
+to each other - do we have more rows from Maine or from New Mexico?
 
-Answer these questions with plots:
-E.1 Do more expensive units get reviewd more often?
-E.2 Are units that have been on AirBnb longer more expensive?
-E.3 Do those results differ by neighborhood group?
+```{r}
+# I add the fct_infreq function here to order by the counts. 
+ggplot(health_census, aes(fct_infreq(StateDesc)))+
+  geom_bar()+
+  # so this line tells ggplot to rotate the text in the x-axis by 90 degrees
+  theme(axis.text.x = element_text(angle = 90))
+```
 
-#Hints!
-0.Bonus try the nchar() function
+now we can see that Maine has slightly more observations than New Mexico.
+
+
+# Part 4: Make a new plot using variables and chart type of your choice.
+
+
