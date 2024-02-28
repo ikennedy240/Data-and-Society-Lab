@@ -1,0 +1,176 @@
+---
+title: "Soc 280 Lab 6: APIs and Webscraping"
+output: html_notebook
+---
+
+# Part 1: Face++ Api
+
+An API, or application programming interface, is a way for two applications to communicate. In most cases, one of the applications (the one we're working on) sends a request to the other application and gets a response. In this lab, we'll use a facial recognition API. We'll send a 'POST' request to upload an image, and we'll recieve a response with information about that image.
+
+```{r}
+# dependencies
+library(httr)
+library(jsonlite)
+library(tidyverse)
+library(jpeg)
+
+## A function to plot images
+plot_jpeg = function(path, add=FALSE)
+{
+  require('jpeg')
+  jpg = readJPEG(path, native=T) # read the file
+  res = dim(jpg)[2:1] # get the resolution, [x, y]
+  if (!add) # initialize an empty plot area if add==FALSE
+    plot(1,1,xlim=c(1,res[1]),ylim=c(1,res[2]),asp=1,type='n',xaxs='i',yaxs='i',xaxt='n',yaxt='n',xlab='',ylab='',bty='n')
+  rasterImage(jpg,1,1,res[1],res[2])
+}
+```
+
+## 1.1 Set up your Face++ Api Access
+
+Complete the sign up at https://console.faceplusplus.com/register
+
+Then go to apps, and select API Key. You might need to make a new API key.
+
+We want to store our API key so that it doesn't show up in our code. An easy way to do that is to store it in a simple text file. I like to keep those files organized in the same directory. So, once you have an api key, make a new directory, called 'creds', which is where we'll store our API key. For now, we'll store it in a simple text file. Make a new text file (File -> New File -> Text file).
+
+In that file, you'll just put two things. On the first line, put your API key, and on the second line put your API secret. Save the file as 'fpp.txt'
+
+Once you're done, you can run the next line to load your credentials into memory.
+
+```{r}
+creds <- read_lines('creds/fpp.txt')
+```
+
+
+Those credentials will give us access to the api. To use the api, though, we'll need some photgraphs.
+I've uploaded a zipped file with five images to blackboard. Download and unzip it inside your data folder.
+You should get a new folder called images with five images inside of it.
+
+## 1.2 Look at the image data
+Let's look at the photos.
+
+I'm using a new technique here, a 'for' loop. It's a way to repeatedly do the same operation multiple times. In this case, it loops through all of the image files in the images folder, and the plots each of them for us to look at. We'll use a similar for loop later on.
+
+```{r}
+for(image in list.files('data/images')){
+  plot_jpeg(file.path('data/images',image))
+}
+```
+
+I've included four of the main characters from the show "The Bear" and Taylor Swift. 
+
+## 1.3 API Test
+
+We'll now send them to the api to see what it tells us. Let's try Taylor first.
+Don't worry if this doesn't work immediately. 
+
+```{r}
+
+file_path <- 'data/images/taylor.jpeg'
+
+response <- POST(
+  url = "https://api-us.faceplusplus.com/facepp/v3/detect",
+  body = list(
+    api_key  = creds[[1]],
+    api_secret = creds[[2]],
+    image_file = upload_file(file_path),
+    return_landmark = 0,
+    return_attributes = "emotion,gender,age,beauty"
+  )
+)
+
+response
+```
+You can see that we get a complicated response, in a JSON format. We can unpack that response into a dataframe:
+
+
+```{r}
+flatten(fromJSON(as.character(response))$faces$attributes)
+```
+
+This tells us that the API identifies this picture of Taylor Swift as a woman who is 35, 27.5% happy, considerd beautiful by an estimated 83% of men and 87% of women.
+
+## 1.4 Combining our results into one dataframe
+
+Now we'll loop through all of our images again, and create a dataframe of our results
+
+```{r}
+face_results <- tibble()
+for(image in list.files('data/images')){
+  # the api doesn't want us to make a lot of calls at once
+  Sys.sleep(1)
+  # making the file path
+  file_path <- file.path('data/images',image)
+  
+  response <- POST(
+    url = "https://api-us.faceplusplus.com/facepp/v3/detect",
+    body = list(
+      api_key  = creds[[1]],
+      api_secret = creds[[2]],
+      image_file = upload_file(file_path),
+      return_landmark = 0,
+      return_attributes = "emotion,gender,age,beauty"
+    )
+  )
+  # flattened version of results
+  cur_row <- flatten(fromJSON(as.character(response))$faces$attributes)
+  
+  # adding metadata from the filename
+  cur_row['name'] <- str_to_title(str_extract(image, '^[^_]+'))
+  cur_row['age']<- str_extract(image, '\\d+')
+  cur_row['gender']<- if_else(str_detect(image, '_m_'),'man','woman')
+  face_results <- face_results %>% bind_rows(cur_row)
+}
+
+face_results %>% select(name, age, gender, everything())
+```
+
+Look over this data, what do you notice? How did the api do on the ages? On the emotions?
+
+
+
+## Part 2: Webscraping Basics
+
+As a quick webscraping demo, we'll pull a table out of a wikipedia page. Like the API demo, this is mostly just to show you what's possible!
+
+```{r}
+library(tidyverse)
+library(rvest) # for getting html
+
+# start with a wikipedia page
+start_url <- 'https://en.wikipedia.org/wiki/List_of_United_States_cities_by_population'
+# read the url
+html <- read_html(start_url)
+# we want a table there, so we get all the tables
+tables <- html %>% html_elements('table')
+
+# but there are lots of tables, we use this to find the one we want
+# if you're doing this on your own, need to check the page info to find this
+pop_table <- tables[str_detect(tables %>% html_attr('class'),'sortable wikitable sticky-header')]
+
+# load the table into a tibble
+df <- html_table(pop_table)[[1]] 
+df
+```
+We're very close now! We just need to clean this up a bit
+1. We have some duplicate column names
+2. The first row needs to get dropped
+3. The New York row of the geometry column is messed up
+4. Right now everything's a character vector, we need to mutate them to be numbers
+
+```{r}
+# 1 fix column names
+names(df) <- c('City','ST','2022estimate','2020census','Change','2020 land area mi2','2020 land area km2','2020 density /mi2','2020 density /km2','Location')
+# 2 fix first row
+df <- df %>% filter(City != 'City', City != '')
+# 3 fix location column
+df <- df %>% mutate(Location = str_remove(Location, '^[^\\d]+'))
+# 4 parse to numbers
+df <- df %>% 
+  mutate(across(c('2022estimate','2020census','2020 land area mi2','2020 land area km2','2020 density /mi2','2020 density /km2'), parse_number), 
+         # change is weird because it has negative numbers
+         Change = if_else(str_detect(Change, '^\\+'), parse_number(Change), -1*parse_number(Change)))
+df
+```
+

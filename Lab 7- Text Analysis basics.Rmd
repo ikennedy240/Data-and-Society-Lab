@@ -1,0 +1,264 @@
+---
+title: "Soc 280 Lab 7: Text Analysis basics"
+output: html_notebook
+---
+
+
+```{r}
+## you will likely need to install all of the packages below other than tidyverse
+library(tidyverse)
+library(tidytext)
+library(tm)
+library(word2vec)
+library(ggrepel)
+library(uwot)
+```
+
+## Part 1: Getting Started
+
+We'll use a sample of 5000 craigslist listings for today.   
+```{r}
+cl_sample <- read_csv('data/seattle_cl_sample.csv', col_types = cols(GEOID10 = col_character()))
+```
+
+
+### 1.1 Text Cleaning
+One of the most common forms of text analysis is simply cleaning the data. There are many options for data cleaning. Sometimes you just need to make a few changes, sometimes you need to make big adjustments. We want to do a few text cleaning task to get this data ready to use.
+
+a) We want to extract and process numbers from the rent, sqft, and beds columns
+b) We want to convert the text data in the listingTitle and the listingText columns to all lowercase
+c) We want to make a column that includes the text from both the listingTitle and the listingText columns
+
+I'll do part of each one, you finish them up.
+
+1.1a 
+Also clean beds and sqft
+```{r}
+cl_sample <- cl_sample %>% mutate(rent = parse_number(rent))
+```
+
+1.1b
+Also make the listing text all lowercase, and remove all numbers
+```{r}
+cl_sample <- cl_sample %>% mutate(listingTitle = str_to_lower(listingTitle),
+                                  # this will remove all digits
+                                  listingTitle = str_remove_all(listingTitle, '\\d'))
+```
+
+1.1c
+Use the function str_c to make a new column, called `cleanText` that has the listing title followed by the listing text in one column. We'll use that column for analysis down the line.
+
+### 1.2 Doing stuff with the text data
+Now that we have the cleaned rent, sqft, and beds, we can plot them against each other.
+
+For instance, we can look at the relationship between rent and squarefeet.
+
+1.2.a
+```{r}
+ggplot(cl_sample, aes(rent, sqft))+
+  geom_point()
+```
+
+Pretty clear relationship there.
+
+1.2.b 
+Now you try. Make a plto showing the relationshib between rent and number of bedrooms. Use a boxplot instead of a scatterplot. 
+HINT: There's a boxplot example in part 2
+
+## Part 2: Keyword analysis
+The most basic form of text analysis is probably keyword analysis. That's when we look at how often certain words, or sets of words, show up in our data.
+
+For instance, I study housing choice vouchers, so I'm interested in how often words connected to housing choice vouchers show up in the ads.
+
+### 2.1 Keyword matching
+```{r}
+# first I define a set of keywords
+keywords <- c('section 8', 'section8', 'sec8', 'sec 8', 'hcv', 'voucher')
+
+# then I paste them together with `|` which means "or" this makes a pattern that
+# the computer can search for
+keyword_pattern <- paste(keywords, collapse = '|')
+
+# now I can make a new variable indicating if the text matches the pattern
+cl_sample['hcv_mention'] = str_detect(cl_sample$cleanText, keyword_pattern)
+
+# finally I want to count the texts that match
+cl_sample %>% count(hcv_mention)
+```
+
+So it looks like around 2% of ads (101) in this sample mention vouchers. 
+
+We can also examine how many match each keyword by using a for loop:
+
+```{r}
+for(keyword in keywords){
+  cl_sample[keyword] = str_detect(cl_sample$cleanText, keyword)
+}
+cl_sample %>% select(keywords) %>% summary()
+```
+This shows that 90 ads matched 'section 8', 8 matched 'sec 8', and 10 mached 'voucher'.
+
+### 2.2 Keyword analysis
+
+We can also see if mentioning vouchers is associated with rental price. We can use a table or a visualiztion.
+
+Table:
+```{r}
+cl_sample %>% group_by(hcv_mention) %>% summarise(mean_rent = mean(rent))
+```
+The table shows that the average rent for the 100 units mentioning HCVs is about $500 lower than for the ~4900 that don't mention it.
+
+Plot:
+```{r}
+cl_sample %>% ggplot(aes(hcv_mention, rent))+
+  geom_boxplot()
+```
+The boxplot shows the same information with a bit more context-for instance, it seems like not only is the average rent lower for ads with HCV mentions, but the maximum rent is much lower too. No HCV mentioning ad in this sample has a rent above 3000, while we can see that there are many other ads with rent above 4000. BTW rent in Seattle is much higher than in Chicago -- average rent in Seattle in 2024 is \$3190, but only \$1850 in Chicago.
+
+### 2.3 Practice
+Choose your own keyword (or set of keywords) and see if it seems like that word (or set of words) is associated with the rent.
+
+## Part 3: Keyword Association
+In part 2 we decided on keywords ahead of time. But sometimes we might just want to see what words are common overall, or under certain conditions. In addition to data about craigslist, we have data about the census tract containing each ad and census data from that tract. (We'll learn how to gather that data using an API later in the class). That includes data about the racial composition of the neighborhood. So we can, for instance, try to find the 'whitest' words -- the words that are most common in whiter neighborhoods.
+
+There are a few steps here.
+3.1 Determine a definition for 'white' neighborhoods and make an appropriate variable
+A big epistemological issue in data science and sociology is determining data-based definitions for commonly used words. In this case, we have to decide how we're going to operationalize the ide of a 'white' neighborhood. There are many good choices, but for now, we'll say a white neighborhood is one where over 80% of the residents are white.
+
+Make a new variable called 'high_white' which is TRUE when the neighborhood is over 80% White and FALSE otherwise. If it works properly, then you should have 1157 'high white' neighborhoods.
+```{r}
+
+```
+
+
+### 3.2 Tokenize the data that we have
+Once we've done that, we need to tokenize our text. That means separating out each word (each token) so that it has its own row in the dataframe. Thankfully, there's a nice function that does this for us. Once we've tokenized, we also want to pull out common English words--like 'the', 'it', 'as'--that we don't want to include in our analysis. Those words are called 'stopwords'.
+
+We'll use the `unnest_tokens` function from the tidytext library to do that.
+
+```{r}
+# we'll start by just selecting a few columns. If you want to analyze more columns,
+# select them here
+cl_tok <- cl_sample %>% select(postID, high_white, cleanText) %>%
+  unnest_tokens(word, cleanText)
+cl_tok
+```
+
+Notice that we now have a dataframe with 856,245 rows!! That's because there were
+lots of words in each of our texts, and they've been expanded.
+
+But a lot of those are words we don't care about. We can get rid of them by filtering out words that are 'stopwords'.
+We also want to get rid of very rare words. 
+
+```{r}
+cl_tok <- cl_tok %>% anti_join(stop_words) %>%
+  group_by(word) %>% mutate(n = n()) %>% filter(n > 5) %>% 
+  ungroup()
+```
+
+Let's visualize the most common words:
+
+```{r}
+cl_tok %>% count(word, sort = TRUE) %>% head(50) %>%
+  # this orders the word vector by the number of appearnces
+  ggplot(aes(n, reorder(word,n)))+
+  geom_col()
+```
+
+What about the least common words?
+```{r}
+# All we have to do is change head to tail
+cl_tok %>% count(word, sort = TRUE) %>% tail(50) %>%
+  # this orders the word vector by the number of appearnces
+  ggplot(aes(n, reorder(word,n)))+
+  geom_col()
+```
+
+Why does this graph look the way it does?
+
+### 3.3 Analyze and visualize the results
+Now we can look for the whitest words in our dataset. We'll use group_by and summarize!
+
+```{r}
+cl_tok %>% group_by(word) %>% summarize(high_white = mean(high_white)) %>% arrange(desc(high_white))
+```
+
+It's hard to tell, but the whitest words are the names of neighborhoods and developments in Seattle with a high proportion of white residents.
+
+Let's make a visualiztion
+```{r}
+cl_tok %>% group_by(word) %>% summarize(high_white = mean(high_white)) %>% arrange(desc(high_white)) %>%
+  head(50) %>%
+  ggplot(aes(high_white, reorder(word,high_white)))+
+  geom_col()
+```
+
+### 3.3 Practice
+
+Repeat the above analysis, but choose a different variable than high_white. You could use a different ethno-racial group, or the poverty proportion or something else.
+
+## Part 4: Word Vectors
+
+OK, now that we have some basics, we can try word vectors. These are the basis for a lot of contemporary text analysis, including LLMs!
+
+Our data is already ready to go. 
+
+### 4.1 Fit a model
+
+```{r}
+model <- word2vec(cl_sample$cleanText, dim = 20, iter = 20)
+embedding <- as.matrix(model)
+```
+
+Wow, that was easy. Now we have a word2vec model of our data.
+
+### 4.2 Look at word similarities
+
+The simplest thing we can to is look at words that are close to ther words in the data.
+
+```{r}
+predict(model, newdata = c('vouchers', 'golf', 'credit'), type = 'nearest', top_n = 5)
+```
+
+Wow, we can see that the model thinks the meaning of 'vouchers' is similar to 'section' (like section 8), to 'assistance', as in housing assistance, but also to 'cats' and 'strict', perhaps reflecting the idea that landlords are strict about vouchers and cats.
+
+Golf, on the other hand, is, in this data, similar to riverview - a development, ymca - a gym, and discovery - a popular park.
+
+Finally, credit is connected to other words related to restrictions, like backgroud, references, and order.
+
+### 4.3 Visualize word similarities
+
+The other thing we can do is take a list of words and visualize their relationship. To do that we need to reduce the number of demensions in our vectors from 20 to just two.
+
+```{r}
+viz <- umap(embedding, n_neighbors = 15, n_threads = 2)
+rownames(viz) <- rownames(embedding)
+head(viz, n = 10)
+```
+
+Then we need to somehow focus on only some of the words -- a visualization with all 50K won't be easy to look at.
+
+Let's make a list of words about neighborhoods, and words related to vouchers and other restrictions
+
+```{r}
+# define keywords
+neighborhood_keywords <- c("park","school","nice","location","tree","quiet","excellent","good","lawn","lake","perfect","amazing","great")
+restriction_keywords <- c("vouchers","section","assistance","background","credit","fee","check","application","deposit","reference")
+# limit data
+viz_df <- tibble(word = rownames(viz), x = viz[,1], y = viz[,2]) %>% filter(word %in% c(neighborhood_keywords, restriction_keywords)) %>%
+  mutate(source = if_else(word %in% neighborhood_keywords, 'neighborhood', 'restriction'))
+viz_df
+```
+
+Now we can make a visualiztion
+```{r}
+ggplot(viz_df, aes(x,y, label = word, color = source))+
+  geom_text_repel()+
+  theme_void()
+```
+
+We can see how the words related to vouchers and background checks cluster together, quite distant from the words related to neighborhood quality.
+
+### 4.4 Practice
+
+Re-run the visualization analysis with your own two sets of words. Briefly interpret your plot

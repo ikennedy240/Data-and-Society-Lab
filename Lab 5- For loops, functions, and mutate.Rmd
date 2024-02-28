@@ -1,0 +1,121 @@
+---
+title: "Soc 280 Lab 5: For loops, functions, and mutate"
+output: html_notebook
+---
+
+So, real talk: I made lab 6 and was all excited about (because it's cool!), but then I realized that there were a few too many new skills in there. So I changed the order of the labs to make space for this, shorter, lab with three key topics. This is just the barest introduction to each one! The idea is just that you've seen and practiced these ideas enough so that when you see them in lab 6, they'll look familiar.
+
+# Part 1: For Loops
+
+## 1.1 What is a loop?
+
+One of the main reasons to use a programming language, like R, is because it's really good at doing the same things many times. For example, imagine I want to say hello to my friends George, Sandy, and Alex. I could write three print statements like this:
+
+```{r}
+print("Hello George")
+print("Hello Sandy")
+print("Hello Alex")
+```
+
+That's great. But what if I had, say, 100 names? Like maybe the 100 most popular baby girl names from 2023, stored in the names.txt file? It would be a huge pain to type out 'print(hello {name})' for each of them. Instead, we can use a loop.
+
+First we read the data in as a character vector using the `read_lines` function:
+
+```{r}
+names <- read_lines('data/names.txt')
+names
+```
+
+Ok, that's a lot of names. Now I want to say hello to all those new friends. I'm going to use a for loop. What the for loop does is that it has some kind of code that it runs once _for_ every name (or data point or list or whatever) that we give it. Check it out:
+
+```{r}
+for(name in names){
+  print(paste("Hello", name))
+}
+```
+
+Wow, check that out, lots of work saved there!
+
+## 1.2 Try it out
+
+Using the above as a guide, make your own for loop that, instead of just saying hello, also tells each name what its rank is on the list.
+
+
+# Part 2: Functions
+
+## 2.1 Writing a Function
+
+We already know about existing functions, you've used a bunch of them, like filter and read_csv and stuff. But did you know you can also write your own functions?! Well you can.
+
+All that a function is is some code that has a name attached to it. Then you can write the function name instead of all the code and save space. 
+
+Let's write a function that takes a name and then returns the states, if any, that have the same first letter as the name.
+
+```{r}
+name_state <- function(name){
+  # get the first letter of the name
+  name_first_letter <- str_sub(name,1,1)
+  states <- state.name[str_sub(state.name,1,1)==name_first_letter]
+  if(length(states)<0){
+    print(paste('Sorry,',name,'no state matches your first letter'))
+  } else {
+    print(paste("Hello", name, "these states match your name:"))
+    print(paste(states, collapse = ', '))
+  }
+}
+
+# try this out with your own name!
+name_state('Ian')
+```
+
+## 2.2 Use a function in a for loop
+We can also use functions in for loops. Make a for loop that loops through the names list and prints the matching states.
+
+## 2.3 Another example
+
+Here's another example function. Our early function only used 'print' to output results. But often we'll want our function to provide a result in code. We can do that by telling the function to 'return' some value, like in this next example.
+
+```{r}
+plus_four <- function(number){
+  return(number + 4)
+}
+plus_four(6)
+```
+
+This function simply takes a number and adds four to it. Try it with some other numbers.
+
+## 2.4 Write a function
+Ok, now you get to try writing a function. Make a function that takes a number and divides it by 7.
+
+## 2.5 Bonus
+Write a for loop that loops through the numbers 1-100 and applys your function to each number.
+
+## Part 3: Mutate
+
+## 3.1 Example
+We've touched on mutate before, but I thought this would be a good chance to review it. Mutate is a function we can use with a data frame to add a new column. Below, I start with a data frame with one column -- the 100 names from before. Then I can use mutate to add extra columns.
+
+```{r}
+# make a tibble from the names
+names_df <- tibble(names)
+names_df
+```
+ Now I'll add three columns:
+ first_letter: the first letter of the name
+ number_of_letters: the length of the name
+ rank: the rank order of the name in the list
+ 
+```{r}
+names_df <- names_df %>% mutate(first_letter = str_sub(names, 1,1),
+                    number_of_letters = str_length(names),
+                    rank = row_number())
+
+names_df
+```
+ 
+## 3.2 Practice
+
+Now you go ahead and add three more columns to names_df:
+last_letter: the last letter of the name
+letters_times_5: the number of letters times five
+letters_standardized: the number of letters minuse the mean of the letters divided by the standard deviation of the letters.
