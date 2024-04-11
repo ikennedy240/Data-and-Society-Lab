@@ -1,0 +1,195 @@
+---
+title: "Soc 280 Lab 8: Visualizing Space"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+In this lab, we'll load a data set that we've used before, the airnb data, and make a map of airbnb prices in Chicago.
+
+# Part 0: Load the data
+
+You know what to do here.
+
+# Part 1: Making a blank map
+
+## 1.1 Install and load libraries
+In order to make spatial visualizations, we'll need to be able to make maps. To do that, we'll use the `leaflet` package. Start by installing and loading the package.
+
+## 1.2 Our first map
+The basic leaflet function creates a space for a map. We can pipe to the 'addTiles()' function to add a background map. In this case, we're assigning our plot object to a variable called `m`, that's so we can modify it later.
+
+```{r}
+m <- leaflet() %>% addTiles()
+m
+```
+
+Ok, `m` is a zoomed out map of the world. I guess that's OK--notice that the map is already interactive. You can zoom into a place, and move around the map with your cursor.
+
+## 1.3 Zoom the map
+But maybe we want to start the map at a particular place, already zoomed in. Like say... area 51.
+
+```{r}
+m = m %>% setView(-115.7930, 37.2431, zoom = 12)
+m
+```
+
+## 1.4 Practice
+Once you have a map of area 51, try changing the view to instead focus on BSB. The coordinates are -87.654344,41.8737569, and use a zoom level of 17.
+
+## 1.5 Bonus
+Make a map that shows another place that you're interested in. You can get coordinates from google maps.
+
+
+# Part 2: Adding markers
+One of the great things that leaflet can do is add markers to the map. It will even set the view based on the markers you add.
+
+We already know two points. We'll put them in a dataframe. Then it will be easy to add them to the plot
+
+## 2.1 Plotting Points
+```{r}
+points <- tibble(name = c('Area 51','UIC BSB'),
+                  longitude = c(-115.7930,-87.654344),
+                  latitude = c(37.2431, 41.8737569))
+leaflet(points) %>%
+  addTiles() %>%
+  addMarkers()
+```
+
+## 2.2 Adding popups
+So now we have two markers. We can also add text that will popup when a user clicks on the marker.
+
+```{r}
+leaflet(points) %>%
+  addTiles() %>%
+  addMarkers(popup = points$name)
+```
+
+Ok, try out clicking on these markers.
+
+## 2.3 Bonus
+Bonus: add data to the `points` dataframe, incluing the latitude and longitude from other places you want to put on the map.
+Consider: the grand canyon, the Standing Rock reservation, the White House, a really tall mountian, a big lake, a city you've visidted.
+
+# Part 3 Adding Data
+Remember, you need the airbnb data for this part.
+
+## 3.1 Mapping AirBnb
+The airbnb data already has latitude and longitude data for each advertised unit. So it's easy to put use the `addMarkers` function to add a marker for each listed unit in a sample of 100 units:
+
+```{r}
+airbnb %>% 
+  sample_n(10) %>%
+  leaflet() %>% addTiles() %>%
+  addMarkers()
+```
+
+## 3.2 Practice
+
+Modify the code above so that the price of the unit appears when you click on each marker.
+
+Bonus: Modify the code so that the Title AND price of the unit appears when you click on each marker.
+
+# Part 4 Spatial Data and the `sf` package
+
+In class, we learned about the municipal areas in Chicago. Now we'll use them to examine the Airbnb data.
+First, we need a new library, `sf`. Install and load that library.
+
+## 4.1 Loading Spatial data
+
+You'll also need to download the chi_nhs.zip file from blackboard and unzip it in your data directory. You should get a new directory there called 'chi_nhs'. That directory contains _shapefiles_ for the Chicago neighborhoods. We'll start by loading those files into R and plotting them with leaflet.
+
+```{r}
+library(sf)
+chi_nhs <- read_sf('data/chi_nhs/chi_nhs.shp')
+glimpse(chi_nhs)
+```
+## 4.2 Basic plotting of sf objects
+Notice that our new object, `chi_nhs` has a column called 'geometry' with type 'MULTIPOLYGON'. Lets try plotting it.
+
+```{r}
+plot(chi_nhs)
+```
+
+This is already recognizable as Chicago! That's a great start. But let's do it in leaflet so we can plot it on a map:
+
+## 4.3 Plotting sf objects in leaflet
+
+We can easily pass this object to leaflet. We need to be careful -- this object is made of polygons, so we need to tell leaflet to addPolygons, instead of adding points or markers or circles.
+
+```{r}
+chi_nhs %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addPolygons()
+
+```
+
+## 4.4 Practice
+See if you can modify the map so that each area shows its neighborhood name when you click on it.
+
+```{r}
+
+```
+
+# Part 5: Spatial Joins and Grouping
+Now we're going to try and join our two data sources. Specifically, we're going to try and find which of the 77 areas contains each of our airbnb listings. Then we can compute things like the number of listings in each area and the average price of listings in that area.
+
+## 5.1 Convert df to sf
+
+```{r}
+# first we convert to sf
+airbnb_geo <- airbnb %>% st_as_sf(coords = c('longitude','latitude')) 
+# then we need to add crs
+st_crs(airbnb_geo) <- st_crs(chi_nhs)
+```
+
+
+## 5.2 Join the Data
+
+```{r}
+# remake the airbnb object, but adding the community
+airbnb <- airbnb_geo %>% 
+  # this joins the airbnb data to the communit that they are within
+  st_join(chi_nhs %>% select(community), st_within) %>% 
+  # we don't need to keep the geometry and it takes a lot of memory so we drop it
+  st_drop_geometry()
+```
+
+
+## 5.3 Group_by and Summarize for Analysis
+
+```{r}
+community_stats <- airbnb %>% group_by(community) %>% summarise(n_listings = n(), median_price = median(price, na.rm = TRUE))
+```
+
+## 5.4 Plot Community Stats
+
+First we need to join the community stats back on to the community data
+```{r}
+chi_nhs <- chi_nhs %>% left_join(community_stats)
+```
+
+Then we can plot, coloring each community by number of units, and adding a label showing the community and the number of units.
+```{r}
+
+pal <- colorNumeric("YlOrRd", domain = log(chi_nhs$n_listings))
+chi_nhs %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(fillColor = ~pal(log(chi_nhs$n_listings)), 
+              fillOpacity = 0.7,
+              weight = 3,
+              color = "#666",
+              label = str_c(chi_nhs$community, ' had ', chi_nhs$n_listings,' listings'))
+```
+
+## 5.5 Practice
+
+Remake the plot from 5.4, but color each neighborhood based on the median price of an airbnb unit there. Compare the plots from 5.4 and 5.5. What do you notice?
+
+## 5.6 Bonus
+
+Can you find a way to show both the rent and the number of units in one plot? 

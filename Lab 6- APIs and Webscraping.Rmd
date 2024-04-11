@@ -67,7 +67,7 @@ Don't worry if this doesn't work immediately.
 
 ```{r}
 
-file_path <- 'data/images/taylor.jpeg'
+file_path <- 'data/images/taylor_w_34.jpeg'
 
 response <- POST(
   url = "https://api-us.faceplusplus.com/facepp/v3/detect",
