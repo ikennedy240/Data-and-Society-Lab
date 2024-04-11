@@ -1,0 +1,300 @@
+---
+title: "Soc 280 Lab 10: RMD and Viz Fine-tuning"
+output:
+  html_document:
+    df_print: paged
+---
+
+We've been using these Rmd files for our whole class. We've also been making some excellent visualizations. Today we're going to try and tune up both of those skills. We'll learn some of the more advanced features of RMD documents, and we'll also build up our visualization skills by fine-tuning some of the plots we've already made in this class.
+
+# Part 1: Chunk Options
+
+## 1.1 Global Chunk Options
+The first thing we'll talk about is this chunk down here ↓↓↓↓↓↓↓
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+This chunk sets the default chunk options for the rest of the Rmd document. The first part, `knitr` references the library that converts the Rmd file to your chosen output. opt_chunk$set is the function to set the options. By setting echo = TRUE, we're telling R to include our code by defualt, but to hide warnings and messages. This is nice, for instance, for hiding the messages that pop up when we load the tidyverse.
+
+## 1.2 Individual Chunck Options
+
+We can also set the options for an individual chunk. First, it can be useful to set a chunk title. I'm calling this chunk 'libraries', since I'm just loading my libraries. This is code I might not want to include in my final document, so I can set echo=FALSE to exclude the code. I'm also setting results ='hide', which hides results from my document. We can also set results='asis' which is useful if we have results that are already in html format. We'll need to do that later on to include our leaflet maps in our knitted document.
+
+```{r libraries, echo=FALSE, results='hide'}
+library(tidyverse)
+library(tidycensus)
+library(leaflet)
+```
+
+## 1.3 Practice
+Create a new chunk below that simply prints out your name. Call the chunk 'name'. Set the chunk options so that the code is hidden, but the results show.
+
+# Part 2: Fine-tuning ggplot Visualizations
+
+## 2.0 Starting Visualization  
+
+Earlier, we got data from the US census on tracts in Illinois. We'll use that same data today to make and fine-tune a visualization.
+
+```{r get census}
+my_vars <- c(re_total = 'B03002_001',
+                     white = 'B03002_003',
+                     black = 'B03002_004',
+                     aian = 'B03002_005',
+                     asian = 'B03002_006',
+                     nhopi = 'B03002_007',
+                     latinx = 'B03002_012',
+                     rent = 'B25058_001')
+
+acs_21 <- get_acs('tract', variables = my_vars, year = 2021, state = 'IL')
+
+acs_21 <- acs_21 %>% 
+  select(-moe) %>%
+  pivot_wider(names_from = 'variable', values_from = estimate) %>%
+  mutate(across(c(white, black, aian, asian, nhopi,latinx), .names = "{.col}_prop",.fns = function(x) x/re_total))
+
+```
+
+Now we'll make a basic visualization. I'm saving it as a variable, 'first_plot', so we can easily look at it agian at the end.
+
+```{r}
+first_plot <- ggplot(acs_21, aes(white_prop, rent))+
+  geom_point()
+first_plot
+```
+
+This is a plot we saw before in class. Recall that it actually shows two things: how rent is related to white proportion in urban areas, like Chicago, and how rent is related to white proportion outside of those areas. As we improve our visualization, we want it to clearly show those differences. We also want to deal with some other basic issues. So we have a to-do list:  
+1. Show the difference between in-Chicago and outside of Chicago
+2. Many of the points are covering over each other, can we help show them?
+3. Can we customize the colors?
+4. Can we improve the look of the background?
+5. We need to update the axis labels, title, and legend
+6. Perhaps we can include trendlines?
+
+## 2.1. Show the difference between in-Chicago and outside of Chicago
+
+We need to first make a new variable that distinguishes between tracts around and beyond Chicago. Actually, that's a pain, so we'll use Cook County instead. We can use str_detect to identify tracts that are in Cook County, and then use that new variable to color the points.
+
+```{r}
+# make the new variable
+acs_21 <- acs_21 %>% mutate(cook_county = str_detect(NAME, 'Cook County'))
+
+# add that to aes as the 'color'
+ggplot(acs_21, aes(white_prop, rent, color = cook_county))+
+  geom_point()
+```
+
+## 2.2. Many of the points are covering over each other, can we help show them?
+Ok, big improvement, now we can see the two patterns more clearly. But part of each pattern looks like a blob of color. One thing we can do to improve that is to change the 'alpha' level. That determines how transparent each point is. If we set it to 0.5, it means we'll need two points on top of each other to be completely opaque. If we use 0.1, we'll need 10 points on top of each other. Let's try 0.1 first. We can set that within the geom_point call.
+
+```{r}
+ggplot(acs_21, aes(white_prop, rent, color = cook_county))+
+  geom_point(alpha = 0.1)
+```
+Wow, that's actaully maybe tooo see through. Let's turn it back up to 0.2.
+
+```{r}
+ggplot(acs_21, aes(white_prop, rent, color = cook_county))+
+  geom_point(alpha = 0.2)
+```
+Ok, that's maybe a better balance. We can still see most of the points in the viz, and the clusters at either end stand out.
+
+## 2.3. Can we customize the colors?
+I think the default R colors are... fine. But there's a whole rainbow of colors you can use for your visualizations. Also, many people will recognize the default ggplot colors. Changing up the colors from the defaults can make your work stand out. But be careful--you want ot pick colors that:
+ - are different from each other
+ - are color-blind friendly
+ - that don't have other common meanings (like be careful with red and blue maps that might look political)
+
+You can see more aout customizing colors in ggplot here: https://r-graph-gallery.com/ggplot2-color.html
+
+I went to the University of Washington, where the colors are purple and gold. So I'll use those. I can improve the legend labels at the same time 
+ 
+```{r}
+ggplot(acs_21, aes(white_prop, rent, color = cook_county))+
+  geom_point(alpha = 0.2)+ 
+  scale_color_manual(values = c('purple', 'gold'), labels = c('Outside of Cook County', 'Within Cook County'))
+```
+
+I like the new legend labels, but now the legend is taking up a lot of space. Maybe we can move it somewhere else.
+
+```{r}
+ggplot(acs_21, aes(white_prop, rent, color = cook_county))+
+  geom_point(alpha = 0.2)+ 
+  scale_color_manual(values = c('purple', 'gold'), labels = c('Outside of Cook County', 'Within Cook County'))+
+  theme(legend.position = c(0.2, 0.8))
+```
+
+## 2.4. Can we improve the look of the background?
+
+We briefly talked about background options before. We can set that using the 'theme' arguments. I'll use theme_classic here, but check out more options at this link :http://www.sthda.com/english/wiki/ggplot2-themes-and-background-colors-the-3-elements
+
+```{r}
+ggplot(acs_21, aes(white_prop, rent, color = cook_county))+
+  geom_point(alpha = 0.2)+ 
+  scale_color_manual(values = c('purple', 'gold'), labels = c('Outside of Cook County', 'Within Cook County'))+
+  theme_classic()+
+  theme(legend.position = c(0.2, 0.8))
+```
+
+## 2.5. We need to update the axis labels, title, and legend.
+
+We'll make a bunch of changes here. First, let's deal with the axis laels and ticks I want to make the axis labels to be formatted properly with descriptive names. We'll also add a legend title, main title and subtitle.
+
+```{r}
+ggplot(acs_21, aes(white_prop, rent, color = cook_county))+
+  geom_point(alpha = 0.2)+ 
+  scale_color_manual(values = c('purple', 'gold'), labels = c('Outside of Cook County', 'Within Cook County'))+
+  theme_classic()+
+  theme(legend.position = c(0.2, 0.8))+
+  labs(x = 'White Proportion', 
+       y = 'Rent', 
+       title = "Rent by White Proportion", 
+       subtitle = 'Illinois Census Tracts',
+       color = 'Tract Location')
+```
+
+Now I'd like to format the axis tick labels so that the rent is in dollars and the proportions are percentages. We'll use the library scales for this, which you might need to install. Note that I'm changing the labels to percent, I also need to transform the axis so that it's 100 times bigger. Oh, and I need to change my labels so that they say percent instead of proportion.
+
+
+```{r}
+library(scales)
+ggplot(acs_21, aes(white_prop, rent, color = cook_county))+
+  geom_point(alpha = 0.2)+ 
+  scale_color_manual(values = c('purple', 'gold'), labels = c('Outside of Cook County', 'Within Cook County'))+
+  theme_classic()+
+  theme(legend.position = c(0.2, 0.8))+
+  labs(x = 'Percent White', 
+       y = 'Rent', 
+       title = "Rent by Percent White", 
+       subtitle = 'Illinois Census Tracts',
+       color = 'Tract Location')+
+  scale_x_continuous(labels = percent, trans = scales::trans_new(name = 'by100', transform = function(x) x*100, inverse = function(x) x/100))+
+  scale_y_continuous(labels = dollar)
+```
+
+```{r}
+ggplot(acs_21, aes(white_prop, rent, color = cook_county))+
+  geom_point(alpha = 0.2)+ 
+  scale_color_manual(values = c('purple', 'gold'), labels = c('Outside of Cook County', 'Within Cook County'))+
+  theme_classic()+
+  theme(legend.position = c(0.2, 0.8))+
+  labs(x = 'Percent White', 
+       y = 'Rent', 
+       title = "Rent by Percent White", 
+       subtitle = 'Illinois Census Tracts',
+       color = 'Tract Location')+
+  scale_x_continuous(labels = percent, trans = scales::trans_new(name = 'by100', transform = function(x) x*100, inverse = function(x) x/100))+
+  scale_y_continuous(labels = dollar)
+```
+
+Wow, this is looking great.
+
+## 2.6. Perhaps we can include trendlines?
+One last thing is that we might want to include trendlines to show the difference in the association between percent White and rent within and beyond Cook county. Turns out that's easy by adding a new geom:
+  geom_line(stat = 'smooth', method = 'lm', alpha = 0.7, size = 1.5)
+
+This says, make a line using a smoothing function, based on lm (linear model). Make it a little bit see-through (alpha = 0.7) and a little bit bigger than normal (size = 1.5)
+
+```{r}
+final_version <- ggplot(acs_21, aes(white_prop, rent, color = cook_county))+
+  geom_point(alpha = 0.2)+ 
+  geom_line(stat = 'smooth', method = 'lm', alpha = 0.7, size = 1.5)+
+  scale_color_manual(values = c('purple', 'gold'), labels = c('Outside of Cook County', 'Within Cook County'))+
+  theme_classic()+
+  theme(legend.position = c(0.2, 0.8))+
+  labs(x = 'Percent White', 
+       y = 'Rent', 
+       title = "Rent by Percent White", 
+       subtitle = 'Illinois Census Tracts',
+       color = 'Tract Location')+
+  scale_x_continuous(labels = percent, trans = scales::trans_new(name = 'by100', transform = function(x) x*100, inverse = function(x) x/100))+
+  scale_y_continuous(labels = dollar)
+final_version
+```
+
+Ok, go ahead and go through the code for this visualization and see if you can remember what each line of code does.
+
+Now, let's look at the original visualization and our final version: 
+
+```{r}
+first_plot
+final_version
+```
+
+Maybe there are other improvements you'd want to see!
+
+## 2.7 Practice
+
+Ok, remake this plot, but show the association between another ethnoracial group and rent. Fine-tune your visualization. It should have:
+- A clear title
+- Good axis labels
+- Appropriate axis ticks and labels
+- non-default theme and color
+- A legend if necessary
+
+Feel free to add other features as you like.
+
+# Part 3: Fine-tuning Leaflet Plots
+
+In this section we'll go through similar steps as above, but using a leaflet plot instead of one made with ggplot. Like before, we'll start with a plot we've already worked on:
+
+
+```{r results='hide'}
+acs_21_geo <- get_acs('county', variables = my_vars, year = 2021, state = 'IL',
+                      geometry = TRUE)
+acs_21_geo <- acs_21_geo%>% select(-moe) %>%
+  pivot_wider(names_from = 'variable', values_from = 'estimate') %>%
+  mutate(across(c(white, black, aian, asian, nhopi,latinx), .names = "{.col}_prop",.fns = function(x) x/re_total))
+```
+
+## 3.0 Basic Plot
+
+*Very important note!!!!*
+We need to set the options to have results='asis' in order for our leaflet plot to show in our knitted html document. You will get errors if you skip this step.
+
+```{r results='asis'}
+pal <- colorNumeric("YlOrRd", domain = acs_21_geo$asian_prop)
+first_leaflet_plot <- acs_21_geo %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(fillColor = ~pal(acs_21_geo$asian_prop))
+first_leaflet_plot
+```
+
+1. Add a legend
+2. The alpha (opacity) levels are a bit weird here, let's fix them
+3. Can we customize the colors?
+4. Can we customize the county outlines?
+5. Can we add informative popups?
+
+## 3.1 Plot Improvements
+This time I'm going to do all five steps in one. Look at the code below and see if you can identify the code that adds each of the five things above. Add a comment showing you know where each thing is.
+
+```{r results='asis'}
+acs_21_geo <- acs_21_geo %>% mutate(asian_percent_text = str_c(round(asian_prop*100, 2), '%'),
+                                    asian_percent = asian_prop*100)
+pal <- colorNumeric("BuPu", domain = acs_21_geo$asian_percent)
+acs_21_geo %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(fillColor = ~pal(acs_21_geo$asian_percent), 
+              fillOpacity = 0.7,
+              weight = 2,
+              color = "#666",
+              label = str_c(acs_21_geo$NAME, ': ', acs_21_geo$asian_percent_text)) %>%
+  addLegend(title = 'IL Counties by Percent Asian', 
+            position = "bottomright", pal = pal, 
+            values = acs_21_geo$asian_percent,
+            labFormat = labelFormat(suffix = "%"))
+```
+
+
+## 3.2 Practice
+
+Remake this plot, but use another variable of your choice--or collect something else from the census and plot that.
+
+Make sure to:
+- Properly format the legend and title to reflect the data you're presenting
+- Use a different color palette than I use in 3.1
+- Offer around 2 sentences describing your plot

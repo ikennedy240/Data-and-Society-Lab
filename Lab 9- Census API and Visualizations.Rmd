@@ -1,0 +1,174 @@
+---
+title: 'Soc 280 Lab 9: Census API and Visualizations'
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+ This script is a worked example for finding census variables and downloading
+ them using the census api and the tidycensus R wrapper on that api.
+ The process works like this:
+ 1) Load the libraries (tidyverse and tidycensus)
+ 2) Decide what census data source you want to use
+    - There are many choices an overview of available apis is here: 
+          https://www.census.gov/data/developers/data-sets.html
+    - An overview of the data available through tidycensus is here: 
+          https://walker-data.com/tidycensus/reference/load_variables.html
+    - We'll be looking primarily at American Community Survey 5-year Estimates 
+        at the Tract level in this example, but you can use a _similar_ workflow
+        to get data at other levels
+ 3) Decide what variables you want from that data source
+    - Here, we'll look for data on ethnoracial composition and rent
+ 4) Find the variable codes using the load_variables() function
+ 5) Use the get_acs() function to download the data we want from the census
+ 6) Explore our data using some basic plots
+
+
+# 1) Load the libraries (tidyverse and tidycensus)
+
+```{r}
+library(tidyverse)
+library(tidycensus) # install this if you need to
+```
+
+# 2) Decide what census data source you want to use
+we're going to use the American Community Survey 5-year (ACS 5) for this example, but you can use other stuff!
+
+# 3) Decide what variables you want from that data source
+- Here, we'll look for data on ethnoracial composition and rent
+
+# 4) Find the variable codes using the load_variables() function
+
+the load variables function loads a data frame of all of the variables available
+for a particular year and for a particular data source. Here we're asking for 
+the variables from 2021 from the ACS 5-year estimates.
+
+```{r}
+acs_vars <- load_variables(2021, 'acs5')
+
+# glimse what we got
+glimpse(acs_vars)
+```
+
+`acs_vars` is a dataframe which tells us which variables are available using the census api. It has four columns: name, label, concept, and geography. We want to find the `name` for the `label`s that match our ideas. In practice, this means scrolling through the acs_vars to find the right label. Let's start with ethnoracial composition, I'm going to `filter` acs vars for those labels that might be useful.
+
+I'm using the function `str_detect` to find rows where the concept starts with
+the phrase 'HISPANIC OR LATINO', the carrot ^ at the beginning tells R to look for
+the phrase at the start of the string
+
+```{r}
+acs_vars %>% filter(str_detect(concept, 'MEDIAN INCOME')) %>%
+  # then I want to count the available concepts
+  count(concept) %>% arrange(desc(n))
+```
+
+Based on this, it seems like I probably want variables from the concept 
+'HISPANIC OR LATINO ORIGIN BY RACE'. Let's look at those.
+
+This code filters to only concepts with the exact name 'HISPANIC OR LATINO ORIGIN BY RACE'
+
+
+```{r}
+acs_vars %>% filter(concept == 'MEDIAN INCOME IN THE PAST 12 MONTHS (IN 2021 INFLATION-ADJUSTED DOLLARS) BY PLACE OF BIRTH IN THE UNITED STATES') %>%
+  # selecting only these vars to make it easy to see
+  select(name, label)
+```
+
+Based on that output, I'm going to make a named vector of the variables I want. I'm just grabbing the total count and counts for white, black, american indian or alsakan natives (aian), asian, native hawaiian or pacific islanders, and latinx folks. There are actually more counts here that you could use to understand even more about the ethnoracial composition of an area.
+
+```{r}
+
+my_vars <- c(re_total = 'B03002_001',
+                     white = 'B03002_003',
+                     black = 'B03002_004',
+                     aian = 'B03002_005',
+                     asian = 'B03002_006',
+                     nhopi = 'B03002_007',
+                     latinx = 'B03002_012')
+```
+
+
+# 5) Use the get_acs() function to download the data we want from the census
+Ok, now that we have some variables, we can get some data
+
+I'm using this function to get tract-level data on my variables for the 
+acs five year ending in 2021 (2017-2021), and just for Illinois.
+
+```{r results='hide'}
+acs_21 <- get_acs('tract', variables = my_vars, year = 2021, state = 'IL')
+```
+
+
+It turns out that we get the data in 'long' format, so we'll have to 
+move it to wide format to use it well. Also, we generally want the ethnoracial
+_proportions_ rather than the counts, so we'll also make those in this step
+
+```{r}
+acs_21 <- acs_21 %>% 
+  # we're dropping the margin of error because we won't use it here
+  select(-moe) %>%
+  pivot_wider(names_from = 'variable', values_from = 'estimate') %>%
+  mutate(across(c(white, black, aian, asian, nhopi,latinx), .names = "{.col}_prop",.fns = function(x) x/re_total))
+```
+
+
+# 6) Explore our data using some basic plots
+
+Now we can make plots of these variables
+
+```{r}
+# a histogram of latinx population in IL
+acs_21 %>% ggplot(aes(latinx_prop))+
+  geom_histogram()
+```
+
+
+a scatterplot of latinx prop by  black prop
+
+```{r}
+acs_21 %>% ggplot(aes(black_prop, latinx_prop))+
+  geom_point()
+```
+
+# Practice
+
+Repeat step #4 above to find a the code for the variable for rent. There might be more than one variable that gets at that idea!
+
+First, add that code and variable to the 'my_vars' vector, re-gather data from the census API, and then plot the relationship between white proportion and rent. Interpret the plot. 
+
+# Making Spatial Plots
+
+The census API can also send us the geometries for each tract along with the population information. The only differences below are that first, we've exchanged getting data on census tracts to instead get data on counties in Illinois. Second, we've added 'geometry = TRUE' to our function call. By doing that, the API automatically gives us shapefiles for each census tract.
+
+
+```{r results='hide'}
+acs_21_geo <- get_acs('county', variables = my_vars, year = 2021, state = 'IL',
+                      geometry = TRUE)
+acs_21_geo <- acs_21_geo%>% select(-moe) %>%
+  pivot_wider(names_from = 'variable', values_from = 'estimate') %>%
+  mutate(across(c(white, black, aian, asian, nhopi,latinx), .names = "{.col}_prop",.fns = function(x) x/re_total))
+```
+
+
+```{r results='asis'}
+library(leaflet)
+pal <- colorNumeric("YlOrRd", domain = acs_21_geo$asian_prop)
+m <- acs_21_geo %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(fillColor = ~pal(acs_21_geo$asian_prop), 
+              fillOpacity = 0.7,
+              weight = 3,
+              color = "#666",
+              label = round(100*acs_21_geo$asian_prop, 2))
+m
+```
+
+# Practice
+
+Remake the plot above, but use rent as the variable that determines the color of each county.
