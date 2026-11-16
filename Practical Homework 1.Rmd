@@ -47,7 +47,7 @@ If you're using the airbnb set, explain how it connects to your interests.
 
 ```
 
-3.2: Examine the variables in your data set. Which variables seem like they would be useful for you. Summarize those variables using summary() and indicate the types of data in those variables.
+3.2: Examine the variables in your data set. Which variables seem like they would be useful for you? Summarize those variables using summary() and indicate the types of data in those variables.
 
 ```{r}
 

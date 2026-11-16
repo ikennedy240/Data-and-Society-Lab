@@ -33,7 +33,7 @@ Question one should be roughly analogous to what we've done in class. There are 
   
 ## 1.2 Basic Visualization
 
-We're going to answer a more complicated question now. What is the relationship between population density and high cholesterol.
+We're going to answer a more complicated question now. What is the relationship between population density and high cholesterol?
 
 The variable 'popden13_17' represents the tract population density; 'high_cholesterol' represents the percentage of people 18 and over who had high cholesterol.
 
@@ -49,13 +49,13 @@ The variable 'popden13_17' represents the tract population density; 'high_choles
 
 ```
 
-1.2.3 You might notice that the plot is... hard to interpret. That's partially because of the scale of the population density variable: most of the values are very low, but a significant portion of them are very high. With data like that, it's useful to apply an axis transformation. Remake your plot from 2.2 with an axis transformation, then interpret the plot.
+1.2.3 You might notice that the plot is... hard to interpret. That's partially because of the scale of the population density variable; most of the values are very low, but a significant portion of them are very high. With data like that, it's useful to apply an axis transformation. Remake your plot from 2.2 with an axis transformation, then interpret the plot.
 
 ```{r}
 
 ```
 
-1.2.4 Perhaps you've noticed that the plot has a strange shape to it--it doesn't follow a single line, but seems to bend.
+1.2.4 Perhaps you've noticed that the plot has a strange shape to it -- it doesn't follow a single line, but seems to bend.
 That's because there's a third variable influencing this relationship. It turns out that the relationship between population density and high cholesterol seems different in places with high proportions of white folks than in other places.
 
 1.2.4a Use the `mutate` function to create a variabled 'high_white' that is TRUE when a neighborhood has a white population above the median for the data and FALSE when the population is below the median for the data.
@@ -87,9 +87,9 @@ That's because there's a third variable influencing this relationship. It turns 
 2.2: Using the functions we've worked with in class (select, filter, mutate, groupby, summarise), plus any others you'd like to use, examine the key relationship from your research question.
 
 You must:
-a. Created a new dataset that only includes the variables you're interested in
-b. Output a version of that dataset that filters it to certain values, hopefully ones you're interested in.
-c. Create a mutated version of one of your variables (many of you will *need* to do this, but even if you don't, I want to see that you can)
+a. Create a new dataset that only includes the variables you're interested in. 
+b. Output a version of that dataset that filters it just to the values you're interested in.
+c. Create a mutated version of one of your variables (many of you will *need* to do this, but even if you don't, I want to see that you can).
 d. Use groupby to group your data by one variable and see the mean (or similar) of another variable in those groups.
 
 *Use as many codeblocks as you need*
