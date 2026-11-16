@@ -24,10 +24,10 @@ Using the method from Lab 9, find the name code for at least one other variable 
 For all of the plots below, include a clear title, axis labels, and consistent style.
 
 ## 2.1 
-Make a histogram of the median income from each county. Include a vertical line showing the average county income in red, and a verticle line showing the income for Cook County, IL in blue. Write at least two sentences interpreting the plot.
+Make a histogram of the median income from each county. Include a vertical line showing the average county income in your least favorite color, and a verticle line showing the income for Cook County, IL in your favorite color. Write at least two sentences interpreting the plot.
 
 ## 2.2 
-Make a scatterplot showing the relationship between any racial group and poverty. Include a trend line showing the linear relationship. Color the dot representing Cook County, IL blue. Write at least two sentences interpreting the plot.
+Make a scatterplot showing the relationship between any racial group and poverty. Include a trend line showing the linear relationship. Color the dot representing Cook County, IL so it stands out. Write at least two sentences interpreting the plot.
 
 ## 2.3 
 Make a choropleth map of counties from ONE state that is not Illinois. Color the counties to reflect any variable you've collected. Write at least two sentences interpreting the plot.
